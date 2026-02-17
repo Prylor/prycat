@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QFileDialog, QLabel, QMainWindow, QMessageBox, QVB
 from ..models import LogcatFilterProxy, LogcatModel, LogEntry
 from ..reader import AdbReader
 from .filter_bar import FilterBar
+from .log_detail import LogDetailWindow
 from .log_table import LogTableView
 from .toolbar import Toolbar
 
@@ -48,6 +49,7 @@ class MainWindow(QMainWindow):
         self._proxy.setSourceModel(self._model)
         self._reader: AdbReader | None = None
         self._paused = False
+        self._detail_windows: list[LogDetailWindow] = []
 
         # Build UI
         self._build_ui()
@@ -117,6 +119,10 @@ class MainWindow(QMainWindow):
         self._filter_bar.priority_changed.connect(self._proxy.set_min_priority)
         self._filter_bar.pid_filter_changed.connect(self._proxy.set_pid_filter)
 
+        # Table context menu
+        self._table.open_detail_requested.connect(self._open_log_detail)
+        self._table.filter_by_tag_requested.connect(self._filter_bar.append_tag)
+
     # ── Actions ─────────────────────────────────────────
     def _refresh_devices(self) -> None:
         devices = AdbReader.list_devices(self._adb_path)
@@ -184,6 +190,20 @@ class MainWindow(QMainWindow):
 
     def _on_pause(self, paused: bool) -> None:
         self._paused = paused
+
+    def _open_log_detail(self, proxy_row: int) -> None:
+        model = self._proxy
+        timestamp = model.index(proxy_row, 0).data() or ""
+        pid = model.index(proxy_row, 1).data() or ""
+        tid = model.index(proxy_row, 2).data() or ""
+        priority = model.index(proxy_row, 3).data() or ""
+        tag = model.index(proxy_row, 4).data() or ""
+        message = model.index(proxy_row, 5).data() or ""
+
+        win = LogDetailWindow(timestamp, pid, tid, priority, tag, message)
+        self._detail_windows.append(win)
+        win.destroyed.connect(lambda: self._detail_windows.remove(win) if win in self._detail_windows else None)
+        win.show()
 
     def _on_clear(self) -> None:
         self._model.clear_all()

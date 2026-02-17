@@ -79,3 +79,13 @@ class FilterBar(QWidget):
         raw = self._tags.text().strip()
         tags = {t.strip() for t in raw.split(",") if t.strip()} if raw else set()
         self.tag_filter_changed.emit(tags)
+
+    def append_tag(self, tag: str) -> None:
+        """Add a tag to the filter field and apply."""
+        current = self._tags.text().strip()
+        existing = {t.strip() for t in current.split(",") if t.strip()}
+        if tag in existing:
+            return
+        new_text = f"{current},{tag}" if current else tag
+        self._tags.setText(new_text)
+        self._emit_tag_filter()

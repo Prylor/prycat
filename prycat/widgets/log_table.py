@@ -1,11 +1,14 @@
 """LogTableView: virtual-scrolling QTableView for logcat entries."""
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence
-from PySide6.QtWidgets import QAbstractItemView, QApplication, QHeaderView, QTableView
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtWidgets import QAbstractItemView, QApplication, QHeaderView, QMenu, QTableView
 
 
 class LogTableView(QTableView):
+    open_detail_requested = Signal(int)    # proxy row index
+    filter_by_tag_requested = Signal(str)  # tag value
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._auto_scroll = True
@@ -27,6 +30,10 @@ class LogTableView(QTableView):
         self.setAlternatingRowColors(True)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Context menu
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
 
         # Column widths
         header = self.horizontalHeader()
@@ -76,3 +83,35 @@ class LogTableView(QTableView):
             lines.append(line)
 
         QApplication.clipboard().setText("\n".join(lines))
+
+    # ── Context menu ────────────────────────────────────
+    def _show_context_menu(self, pos) -> None:
+        index = self.indexAt(pos)
+        if not index.isValid():
+            return
+
+        row = index.row()
+        model = self.model()
+
+        # Read tag from column 4
+        tag = model.index(row, 4).data(Qt.DisplayRole) or ""
+
+        menu = QMenu(self)
+
+        copy_action = QAction("Copy", self)
+        copy_action.triggered.connect(self._copy_selection)
+        menu.addAction(copy_action)
+
+        menu.addSeparator()
+
+        detail_action = QAction("Open in Window", self)
+        detail_action.triggered.connect(lambda: self.open_detail_requested.emit(row))
+        menu.addAction(detail_action)
+
+        menu.addSeparator()
+
+        tag_action = QAction(f"Filter by Tag '{tag}'", self)
+        tag_action.triggered.connect(lambda: self.filter_by_tag_requested.emit(tag))
+        menu.addAction(tag_action)
+
+        menu.exec(self.viewport().mapToGlobal(pos))
