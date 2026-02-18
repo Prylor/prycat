@@ -6,6 +6,8 @@ A fast, dark-themed GUI for viewing ADB logcat output in real time.
 
 prycat renders Android device logs in a responsive table that handles hundreds of thousands of lines without lag. It streams logcat output in a background thread, batches updates to the UI, and caps memory with a ring buffer — so it stays fast even during extended debug sessions.
 
+![prycat main window](images/main.png)
+
 ## Features
 
 - **Real-time streaming** — logs appear as they happen, no manual refresh
